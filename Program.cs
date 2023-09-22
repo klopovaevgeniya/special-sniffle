@@ -1,14 +1,20 @@
 ﻿
+
 int number;
 do
 {
     Console.Clear();
 
-    Console.WriteLine("Выберите программу");
-    Console.WriteLine("1. Угадай число");
-    Console.WriteLine("2. Таблица умножения");
-    Console.WriteLine("3. Вывод делителей числа");
-    Console.WriteLine("4. Выход из меню");
+    Console.WriteLine("Выберите действие");
+    Console.WriteLine("1. Сложение");
+    Console.WriteLine("2. Вычетание");
+    Console.WriteLine("3. Умножение");
+    Console.WriteLine("4. Деление");
+    Console.WriteLine("5. Возведение в степень");
+    Console.WriteLine("6. Квадратный корень числа");
+    Console.WriteLine("7. Процент от числа");
+    Console.WriteLine("8. Факториал");
+    Console.WriteLine("9. Выйти из калькулятора");
 
     Console.Write("--------> ");
     number = Convert.ToInt32(Console.ReadLine());
@@ -16,59 +22,86 @@ do
 
     if (number == 1)
     {
-        Random rand = new Random();
-        int i = rand.Next(101);
-
-        Console.WriteLine("Компьютер загадал число от 0 до 100. Попробуй отгадать его");
-
-        int a;
-        do
-        {
-            Console.WriteLine("Введите число:");
-            a = Convert.ToInt32(Console.ReadLine());
-
-            if (a > i)
-                Console.WriteLine("Надо число меньше");
-            if (a < i)
-                Console.WriteLine("Надо число больше");
-        }
-        while (a != i);
-
-        Console.WriteLine("Молодец!\nНажмите любую клавишу для продолжения...");
-        Console.ReadKey();
+        Console.Write("Введите А: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите B: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = a + b;
+        Console.WriteLine("Сумма А+B=" + res);
     }
 
     if (number == 2)
     {
-        int[,] mt = new int[10, 10];
-        for (int b = 0; b <= 9; b++)
-            for (int j = 0; j <= 9; j++)
-                mt[b, j] = (b + 1) * (j + 1);
-
-        for (int b = 0; b <= 9; b++)
-        {
-            for (int j = 0; j <= 9; j++)
-                Console.Write(mt[b, j] + "\t");
-            Console.WriteLine("\n");
-        }
-        Console.ReadKey();
-
+        Console.Write("Введите А: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите B: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = a - b;
+        Console.WriteLine("Разность А-B=" + res);
     }
-
 
     if (number == 3)
     {
-        Console.Write(" Введите число: ");
-        int x = Convert.ToInt32(Console.ReadLine());
-        Console.Write(" Делители числа " + x + ": 1, ");
-
-        for (int c = 2; c < x; c++)
-            if (x % c == 0)
-                Console.Write(c + " , ");
-
-        Console.WriteLine(x);
-        Console.ReadKey();
+        Console.Write("Введите А: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите B: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = a * b;
+        Console.WriteLine("Произведение А*B=" + res);
     }
 
-}
-while (number != 4);
+    if (number == 4)
+    {
+        Console.Write("Введите А: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите B: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = a / b;
+        Console.WriteLine("Частное А/B=" + res);
+
+    }
+
+    if (number == 5)
+    {
+        Console.Write("Введите основание: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите показатель степени: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = Math.Pow(a, b);
+        Console.WriteLine(a + " в степени " + b + " = " + res);
+    }
+
+    if (number == 6)
+    {
+        Console.Write("Введите подкоренное выражение: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        double res = Math.Sqrt(a);
+        Console.WriteLine("Квадратный корень из " + a + " = " + res);
+    }
+
+    if (number == 7)
+    {
+        Console.Write("Введите число: ");
+        double a = Convert.ToDouble(Console.ReadLine());
+        Console.Write("Введите %: ");
+        double b = Convert.ToDouble(Console.ReadLine());
+        double res = a / 100 * b;
+        Console.WriteLine(b + "% от " + a + " = " + res);
+    }
+
+    if (number == 8)
+    {
+        Console.Write("Введите число: ");
+        int a = Convert.ToInt32(Console.ReadLine());
+        int f = 1;
+        for (int i = 1; i <= a; i++) f = f * i;
+        Console.WriteLine("Результат: " + a + "! = " + f);
+    }
+
+
+    Console.WriteLine("Нажмите любую клавишу для продолжения...");
+    Console.ReadKey();
+
+} while (number != 9);
+
+
