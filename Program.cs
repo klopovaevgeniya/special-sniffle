@@ -1,248 +1,269 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-
-namespace ca_csKbdTrainer
+namespace ca_csTaskManager
 {
-    // Пользовательский тип одной записи в списке таблицы рекордов
-    struct tRecordData
+    enum tProcessActions
     {
-        public string userName;
-        public float cps;
-        public float cpm;
+        none = 0,
+        killOneProc = 1,
+        killAllProc = 2
     }
 
-    // Класс "Таблица рекордов"
-    static class tRecordTable
+    static class tProcess
     {
-        const string fileName = "records.json";
-        public static tRecordData curUser = new tRecordData();
-        static List<tRecordData> records = new List<tRecordData>();
+        static Process[] processList;
+        static int curItem = 0;
 
-        // Метод загрузки списка таблицы рекордов из JSON-файла
-        public static void LoadRecTable()
+        const int nameWidth = 40;
+        const int idWidth = 5;
+        const int memWidth = 14;
+        const int priorWidth = 12;
+        const int leftMargin = 85;
+
+        public static void killOneProcess()
         {
-            if (File.Exists(fileName))
+            processList[curItem].Kill();
+            processList[curItem].WaitForExit();
+        }
+
+        public static void killAllProcesses()
+        {
+            string procName = processList[curItem].ProcessName;
+            Process[] tmpProcList = Process.GetProcessesByName(procName);
+            foreach (Process p in tmpProcList)
             {
-                string s = File.ReadAllText(fileName);
-                records = JsonConvert.DeserializeObject<List<tRecordData>>(s);
+                try
+                {
+                    p.Kill();
+                    p.WaitForExit();
+                    do { Thread.Sleep(100); } while (!p.HasExited);
+                }
+                catch { }
             }
         }
 
-        // Метод сохранения списка таблицы рекордов в JSON-файл
-        public static void SaveRecTable()
+        public static void initProcess()
         {
-            string s = JsonConvert.SerializeObject(records.ToList());
-            File.WriteAllText(fileName, s);
+            processList = null;
+            processList = Process.GetProcesses();
+
+            sortProcessList();
+            showProcessList();
+            firstItem();
         }
 
-        // Метод сортировки списка таблицы рекордов
-        public static void SortRecTable()
+        public static void sortProcessList()
         {
-            tRecordData tmp;
-            for (int i = 0; i < records.Count() - 1; i++)
-                for (int j = i + 1; j < records.Count(); j++)
-                    if (records[i].cpm < records[j].cpm)
+            Process tmp = new Process();
+            for (int i = 0; i < processList.Length - 1; i++)
+                for (int j = i + 1; j < processList.Length; j++)
+                    if (string.Compare(processList[i].ProcessName, processList[j].ProcessName) > 0)
                     {
-                        tmp = records[i];
-                        records[i] = records[j];
-                        records[j] = tmp;
+                        tmp = processList[i];
+                        processList[i] = processList[j];
+                        processList[j] = tmp;
                     }
         }
 
-        // Метод добавления записи в список таблицы рекордов
-        public static void AddRec(tRecordData d)
+        public static tProcessActions showOneProcess()
         {
-            records.Add(d);
-        }
+            tProcessActions res = tProcessActions.none;
+            bool stop2 = false;
 
-        // Метод вывода на экран списка таблицы рекордов
-        public static void ShowRecTable()
-        {
-            bool isCurUser;
             Console.Clear();
-            Console.WriteLine("Таблица рекордов:\n-----------------");
-            for (int i = 0; i < records.Count(); i++)
+            Console.WriteLine("Процесс: " + processList[curItem].ProcessName + "\n" +
+                              "".PadLeft(50, '-'));
+            try
             {
-                if (curUser.userName == records[i].userName &&  // Конечно, есть очень маленькая вероятность одновременного совпадения в результатах
-                    curUser.cpm == records[i].cpm &&            // имени, кол-ва симв./мин. и кол-ва симв./сек. и лучше бы добавить в tRecordData
-                    curUser.cps == records[i].cps)
-                {            // например, уникальный ID, но, по условию задачи, ID в пользовательский тип не входит
-                    isCurUser = true;
-                    Console.ForegroundColor = ConsoleColor.Red;
-                }
-                else
-                    isCurUser = false;
-
-                Console.WriteLine(records[i].userName.PadRight(20) + "\t" +
-                                  string.Format("{0:f3}", records[i].cpm) + " симв./мин.\t" +
-                                  string.Format("{0:f3}", records[i].cps) + " симв./сек." +
-                                  (isCurUser ? "  <--- Ваш результат" : ""));
-                Console.ResetColor();
+                Console.WriteLine("Использование диска:              " + processList[curItem].VirtualMemorySize64.ToString() + "\n" +
+                                  "Приоритет:                        " + processList[curItem].BasePriority.ToString() + "\n" +
+                                  "Класс приоритета:                 " + processList[curItem].PriorityClass + "\n" +
+                                  "Время использования процесса:     " + processList[curItem].TotalProcessorTime.ToString() + "\n" +
+                                  "Все время использования:          " + processList[curItem].UserProcessorTime.ToString() + "\n" +
+                                  "Использование оперативной памяти: " + processList[curItem].PrivateMemorySize64.ToString() + "\n" +
+                                  "".PadLeft(50, '-') +
+                                  "\nСтатус = " + processList[curItem].Threads[0].ThreadState + "\n" +
+                                  "".PadLeft(50, '-') +
+                                  "\nD         - завершить процесс\n" +
+                                  "Delete    - завершить все процессы с этим именем"
+                                 );
             }
-        }
-    }
-
-
-    // Класс работы с текстом
-    class tTrainer
-    {
-        string fileName = "texts.json";
-        List<string> texts = new List<string>();
-        int curTextNum = 0;
-        public int curSymb = 0;
-        public bool stop = false;
-
-        public void getText()
-        {
-            if (File.Exists(fileName))
+            catch (Exception ex)
             {
-                string s = File.ReadAllText(fileName);
-                texts = JsonConvert.DeserializeObject<List<string>>(s);
+                Console.WriteLine("Процесс недоступен для отображения");
+                Console.WriteLine("Причина: " + ex.Message);
+                Console.WriteLine("".PadLeft(50, '-'));
             }
-            else
+            finally
             {
-                texts.Add("За последние несколько лет компьютер становится всё в большей степени " +
-                          "неотъемлемой частью почти каждого человека. Использование ПК не только " +
-                          "существенно облегчает интелектуальный труд и помогает решать сложнейшие " +
-                          "задачи всех уровней жизнедеятельности человека, но и способствует развитию " +
-                          "информационных технологий науки и техники, коренным образом изменяя наше " +
-                          "сознание. В век компьютеров, глобальных сетей и телекомуникаций каждый " +
-                          "человек, столкнувшись с этим миром, постепенно, с большим трудом, методом " +
-                          "проб и ошибок становится квалифицированным пользователем, применяя накопленные " +
-                          "знания в решении каждодневных больших и малых вопросов и проблем.");
-            }
-            Random r = new Random();
-            curTextNum = r.Next(0, texts.Count() - 1);
-            curSymb = 0;
-        }
-
-        public void showText(char ch)
-        {
-            if (ch == texts[curTextNum][curSymb]) curSymb++;
-
-            Console.SetCursorPosition(0, 0);
-            Console.Write(texts[curTextNum]);
-            if (curSymb > 0)
-            {
-                Console.SetCursorPosition(0, 0);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.Write(texts[curTextNum].Substring(0, curSymb));
-                Console.ResetColor();
+                Console.WriteLine("Backspace - вернуться к списку процессов");
             }
 
-            if (curSymb == texts[curTextNum].Length)
-                stop = true;
-        }
-    }
-
-    // Класс таймер
-    static class tTimer
-    {
-        public const int testTime = 60;
-        public static Stopwatch myTimer = new Stopwatch();
-        public static Thread myTimerTread = new Thread(new ThreadStart(showTimer));
-        public static int timerRow;
-        public static int leftTime = testTime;
-
-        public static void showTimer()
-        {
-            int elapsedTime;
-            while (true)
+            ConsoleKeyInfo ch;
+            do
             {
-                if (myTimer.IsRunning)
+                ch = Console.ReadKey(true);
+                switch (ch.Key)
                 {
-                    int row = Console.CursorTop;
-                    int col = Console.CursorLeft;
-                    Console.CursorVisible = false;
-
-                    elapsedTime = (int)myTimer.ElapsedMilliseconds / 1000;
-                    leftTime = testTime - elapsedTime > 0 ? testTime - elapsedTime : 0;
-                    Console.SetCursorPosition(0, timerRow);
-                    Console.Write(("Печатайте текст...  У Вас осталось: " +
-                                   leftTime.ToString() + " сек.").PadRight(40));
-
-                    Console.SetCursorPosition(col, row);
-                    Console.CursorVisible = true;
-                    Thread.Sleep(500);
+                    case ConsoleKey.D:
+                        res = tProcessActions.killOneProc;
+                        stop2 = true;
+                        break;
+                    case ConsoleKey.Delete:
+                        res = tProcessActions.killAllProc;
+                        stop2 = true;
+                        break;
+                    case ConsoleKey.Backspace:
+                        res = tProcessActions.none;
+                        stop2 = true;
+                        break;
                 }
+            } while (!stop2);
+
+            return res;
+        }
+
+        public static void showProcessList()
+        {
+            int totWidth = nameWidth + idWidth + memWidth + priorWidth + 2;
+
+            Console.Clear();
+            string s = "Диспетчер задач".PadLeft(totWidth / 2 + 7, ' ').PadRight(totWidth, ' ');
+            Console.WriteLine(s);
+            Console.WriteLine("".PadLeft(totWidth, '-'));
+
+            Console.WriteLine("Название  ".PadRight(nameWidth / 2).PadLeft(nameWidth / 2).PadLeft(nameWidth) +
+                              "ID".PadRight(idWidth / 2).PadLeft(idWidth / 2).PadLeft(idWidth) +
+                              "Память".PadRight(memWidth / 2).PadLeft(memWidth / 2).PadLeft(memWidth) +
+                              "Приоритет".PadLeft(priorWidth + 2));
+
+            foreach (Process theprocess in processList)
+            {
+                Console.WriteLine("  " + theprocess.ProcessName.PadRight(nameWidth) +
+                                  (theprocess.Id.ToString()).PadLeft(idWidth) +
+                                  (Math.Round(theprocess.PrivateMemorySize64 / 1048576.0, 2).ToString() + " Мб").PadLeft(memWidth) +
+                                  theprocess.BasePriority.ToString().PadLeft(priorWidth));
             }
+
+            Console.SetCursorPosition(leftMargin, 0); Console.Write("Возможные действия:");
+            Console.SetCursorPosition(leftMargin, 2); Console.Write("Перемещение : ↓ ↑ Home End");
+            Console.SetCursorPosition(leftMargin, 3); Console.Write("Выбор       : ◄─┘");
+            Console.SetCursorPosition(leftMargin, 4); Console.Write("Выход       : Escape");
+        }
+
+        private static void showPtr()
+        {
+            Console.CursorVisible = false;
+            if (curItem < 2) Console.SetCursorPosition(0, curItem);
+            Console.SetCursorPosition(0, curItem + 3);
+            Console.Write("->");
+        }
+
+        private static void hidePtr()
+        {
+            Console.SetCursorPosition(0, curItem + 3);
+            Console.Write("  ");
+        }
+
+        public static void nextItem()
+        {
+            hidePtr();
+            if (curItem < processList.Count() - 1) curItem++;
+            else curItem = 0;
+            showPtr();
+        }
+
+        public static void prevItem()
+        {
+            hidePtr();
+            if (curItem > 0) curItem--;
+            else curItem = processList.Count() - 1;
+            showPtr();
+        }
+
+        public static void firstItem()
+        {
+            hidePtr();
+            curItem = 0;
+            showPtr();
+        }
+
+        public static void lastItem()
+        {
+            hidePtr();
+            curItem = processList.Count() - 1;
+            showPtr();
+        }
+
+        public static void showCurItem()
+        {
+            hidePtr();
+            showPtr();
         }
     }
 
-    // Главная программа
+
+    // --- Главная программа
     class Program
     {
         static void Main(string[] args)
         {
             ConsoleKeyInfo choice;
-            tTrainer Trainer = new tTrainer();
-            tTimer.myTimerTread.Start();
+            bool stop = false;
+
+            tProcess.initProcess();
 
             do
-            {
-                Console.Clear();
-                Console.Write("Введите имя для таблицы рекордов: ");
-                tRecordTable.curUser.userName = Console.ReadLine();
-
-                Console.Clear();
-                Trainer.getText();
-                Trainer.showText((char)0);
-
-                int row = Console.CursorTop + 2;
-                Console.Write("\n--------------------------------------------------------------" +
-                              "\nКак только будете готовы, нажмите Enter");
+            {// Главный цикл программы
                 choice = Console.ReadKey(true);
-                if (choice.Key != ConsoleKey.Enter) break;
 
-                tTimer.timerRow = row;
-                Trainer.stop = false;
-
-                tTimer.myTimer.Start();
-                Console.SetCursorPosition(0, 0);
-
-                do
+                switch (choice.Key)
                 {
-                    if (tTimer.leftTime == 0)
-                        Trainer.stop = true;
+                    // Перемещение по списку процессов
+                    case ConsoleKey.UpArrow:
+                        tProcess.prevItem();
+                        break;
+                    case ConsoleKey.DownArrow:
+                        tProcess.nextItem();
+                        break;
+                    case ConsoleKey.Home:
+                        tProcess.firstItem();
+                        break;
+                    case ConsoleKey.End:
+                        tProcess.lastItem();
+                        break;
 
-                    while (Console.KeyAvailable)
-                    {
-                        choice = Console.ReadKey(true);
-                        Trainer.showText(choice.KeyChar);
-                    }
-                } while (!Trainer.stop);
-                tTimer.myTimer.Stop();
+                    case ConsoleKey.Escape: // Выход
+                        stop = true; ;
+                        break;
 
-                Console.SetCursorPosition(0, row);
-                Console.Write("Тестирование завершено. Нажмите Enter для продолжения...");
-                do { choice = Console.ReadKey(true); } while (choice.Key != ConsoleKey.Enter);
+                    case ConsoleKey.Enter:  // Подробно о процессе
+                        tProcessActions curAction = tProcess.showOneProcess();
+                        switch (curAction)
+                        {
+                            case tProcessActions.killOneProc:
+                                tProcess.killOneProcess();
+                                tProcess.initProcess();
+                                break;
+                            case tProcessActions.killAllProc:
+                                tProcess.killAllProcesses();
+                                tProcess.initProcess();
+                                break;
+                            case tProcessActions.none:
+                                tProcess.showProcessList();
+                                tProcess.showCurItem();
+                                break;
+                        }
+                        break;
+                }
+            } while (!stop);
 
-
-                tRecordTable.curUser.cps = (float)(Trainer.curSymb / (tTimer.myTimer.ElapsedMilliseconds / 1000.0));
-                tRecordTable.curUser.cpm = tRecordTable.curUser.cps * 60;
-                tTimer.myTimer.Reset();
-
-                tRecordTable.LoadRecTable();
-                tRecordTable.AddRec(tRecordTable.curUser);
-                tRecordTable.SortRecTable();
-                tRecordTable.SaveRecTable();
-
-                tRecordTable.ShowRecTable();
-                Console.Write("\nЕсли Вы хотите попробовать еще раз, нажмите Enter");
-                choice = Console.ReadKey(true);
-
-            } while (choice.Key == ConsoleKey.Enter);
-
-            tTimer.myTimerTread.Abort();
-
-        } // end Main()
-    } // end Program
-} // end namespace
+        } // Конец Main
+    } // Конец класса Program
+}
